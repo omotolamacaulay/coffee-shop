@@ -5,6 +5,8 @@ from jose import jwt
 from urllib.request import urlopen
 from dotenv import load_dotenv
 import os
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 
 load_dotenv()
 

@@ -53,8 +53,8 @@ def get_drinks():
         or appropriate status code indicating reason for failure
 '''
 @app.route("/drinks-detail")
-def get_drinks_detail():
-        
+@requires_auth('get:drinks-detail')
+def get_drinks_detail(jwt):
     drinks = Drink.query.order_by(Drink.id).all()
 
     if len(drinks) == 0:
@@ -77,7 +77,28 @@ def get_drinks_detail():
     returns status code 200 and json {"success": True, "drinks": drink} where drink an array containing only the newly created drink
         or appropriate status code indicating reason for failure
 '''
+@app.route("/drinks", methods=["POST"])
+@requires_auth('post:drinks')
+def add_drink(jwt):
+    request_body = request.get_json()
+    request_title = request_body['title']
+    request_recipe = json.dumps(request_body['recipe'])
+    try:
+        drink = Drink(
+            title=request_title,
+            recipe=request_recipe,
+        )
+        drink.insert()
 
+        return jsonify(
+            {
+                "success": True,
+                "drinks": [drink.long()],
+            }
+        )
+
+    except:
+        abort(422)
 
 '''
 @TODO implement endpoint
@@ -90,7 +111,39 @@ def get_drinks_detail():
     returns status code 200 and json {"success": True, "drinks": drink} where drink an array containing only the updated drink
         or appropriate status code indicating reason for failure
 '''
+@app.route("/drinks/<int:drink_id>", methods=["PATCH"])
+@requires_auth('patch:drinks')
+def update_drink(jwt, drink_id):
+    drink = Drink.query.filter(Drink.id == drink_id).one_or_none()
+    if drink is None:
+        abort(404)
 
+    request_body = request.get_json()
+
+    if 'title' in request_body: 
+        request_title = request_body['title']
+
+    if 'recipe' in request_body:
+        request_recipe = json.dumps(request_body['recipe'])
+
+    try:
+        if 'title' in request_body:
+            drink.title = request_title
+            
+        if 'recipe' in request_body:
+            drink.recipe = request_recipe
+
+        drink.update()
+
+        return jsonify(
+            {
+                "success": True,
+                "drinks": [drink.long()],
+            }
+        )
+
+    except:
+        abort(422)
 
 '''
 @TODO implement endpoint
@@ -102,7 +155,26 @@ def get_drinks_detail():
     returns status code 200 and json {"success": True, "delete": id} where id is the id of the deleted record
         or appropriate status code indicating reason for failure
 '''
+@app.route("/drinks/<int:drink_id>", methods=["DELETE"])
+@requires_auth('delete:drinks')
+def delete_question(jwt, drink_id):
+    try:
+        drink = Drink.query.filter(Drink.id == drink_id).one_or_none()
 
+        if drink is None:
+            abort(404)
+
+        drink.delete()
+
+        return jsonify(
+            {
+                "success": True,
+                "deleted": drink_id,
+            }
+        )
+
+    except:
+        abort(422)
 
 # Error Handling
 '''
@@ -119,6 +191,13 @@ def unprocessable(error):
     }), 422
 
 
+@app.errorhandler(400)
+def handle_bad_request_error(error):
+    return jsonify({
+        "success": False,
+        "error": 400,
+        "message": "bad request"
+    }), 400
 '''
 @TODO implement error handlers using the @app.errorhandler(error) decorator
     each error handler should return (with approprate messages):
@@ -134,9 +213,27 @@ def unprocessable(error):
 @TODO implement error handler for 404
     error handler should conform to general task above
 '''
-
-
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        "success": False, 
+        "error": 404, 
+        "message": "resource not found"
+        }), 404
+    
+@app.errorhandler(500)
+def handle_server_error(error):
+    return jsonify({
+        "success": False,
+        "error": 500,
+        "message": "something went wrong"
+    }), 500
 '''
 @TODO implement error handler for AuthError
     error handler should conform to general task above
 '''
+@app.errorhandler(AuthError)
+def handle_auth_error(err):
+    response = jsonify(err.error)
+    response.status_code = err.status_code
+    return response

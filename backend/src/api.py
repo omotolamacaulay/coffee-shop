@@ -79,7 +79,7 @@ def get_drinks_detail(jwt):
 '''
 @app.route("/drinks", methods=["POST"])
 @requires_auth('post:drinks')
-def add_drink(jwt):
+def create_drink(jwt):
     request_body = request.get_json()
     request_title = request_body['title']
     request_recipe = json.dumps(request_body['recipe'])
